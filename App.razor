@@ -1,0 +1,18 @@
+@namespace Demo
+
+<Router AppAssembly="@typeof(App).Assembly">
+  <Found Context="routeData">
+    <RouteView RouteData="@routeData" DefaultLayout="@typeof(Demo.Layout.MainLayout)" />
+    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+  </Found>
+  <NotFound>
+    <PageTitle>Not implemented in demo</PageTitle>
+    <LayoutView Layout="@typeof(Demo.Layout.MainLayout)">
+      <p role="alert">Demo purposes only</p>
+    </LayoutView>
+  </NotFound>
+</Router>
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />

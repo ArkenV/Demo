@@ -1,0 +1,193 @@
+@inject IJSRuntime JSRuntime
+
+<div class="level-progress-container" id="@($"level-progress-{Id}")" tabindex="0" 
+     role="progressbar" aria-valuemin="0" aria-valuemax="100" 
+     aria-valuenow="@ProgressPercentage" aria-label="Level progress: @ProgressPercentage percent complete">
+  <div class="level-info">
+    <div class="current-level">
+      <span class="level-number">@CurrentLevel</span>
+      <span class="level-label">@LevelTitle</span>
+    </div>
+    <div class="next-level">
+      <span class="next-level-number">@(CurrentLevel + 1)</span>
+      <span class="next-level-label">@NextLevelTitle</span>
+    </div>
+  </div>
+  
+  <div class="progress-container">
+    <div class="progress-track">
+      <div class="progress-fill" style="width: @($"{ProgressPercentage}%")"></div>
+      @foreach (var milestone in Milestones)
+      {
+        <div class="milestone @(milestone.IsCompleted ? "completed" : "")" 
+             style="left: @($"{milestone.Position}%")"
+             title="@milestone.Description">
+        </div>
+      }
+      
+      <div class="progress-label">@PointsToNextLevel points to next level</div>
+    </div>
+  </div>
+  
+  <div class="level-stats">
+    <div class="points-earned">
+      <span class="stat-value">@CurrentPoints</span>
+      <span class="stat-label">Points Earned</span>
+    </div>
+    <div class="level-target">
+      <span class="stat-value">@NextLevelThreshold</span>
+      <span class="stat-label">Next Level</span>
+    </div>
+  </div>
+</div>
+
+@code
+{
+  [Parameter] public string Id { get; set; } = Guid.NewGuid().ToString();
+  [Parameter] public int CurrentLevel { get; set; } = 1;
+  [Parameter] public string LevelTitle { get; set; } = "Beginner";
+  [Parameter] public string NextLevelTitle { get; set; } = "Intermediate";
+  [Parameter] public int CurrentPoints { get; set; } = 0;
+  [Parameter] public int NextLevelThreshold { get; set; } = 1000;
+  [Parameter] public List<MilestoneModel> Milestones { get; set; } = new List<MilestoneModel>();
+  
+  private int ProgressPercentage => (int)Math.Min(100, Math.Max(0, (double)CurrentPoints / NextLevelThreshold * 100));
+  private int PointsToNextLevel => NextLevelThreshold - CurrentPoints;
+  
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender && CurrentLevel > 1)
+    {
+      await JSRuntime.InvokeVoidAsync("gamificationInterop.animateLevelProgress", $"level-progress-{Id}");
+    }
+  }
+  
+  public class MilestoneModel
+  {
+    public string? Description { get; set; }
+    public int Position { get; set; } // 0-100 percentage position
+    public bool IsCompleted { get; set; }
+  }
+}
+
+<style>
+  .level-progress-container
+  {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  
+  .level-info
+  {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  
+  .current-level, .next-level
+  {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .next-level
+  {
+    align-items: flex-end;
+  }
+  
+  .level-number, .next-level-number
+  {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333;
+  }
+  
+  .level-label, .next-level-label
+  {
+    font-size: 0.85rem;
+    color: #666;
+  }
+  
+  .progress-container
+  {
+    margin: 15px 0;
+    position: relative;
+  }
+  
+  .progress-track
+  {
+    height: 12px;
+    background-color: #e0e0e0;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .progress-fill
+  {
+    height: 100%;
+    background: linear-gradient(90deg, #1976D2, #64B5F6);
+    border-radius: 6px;
+    transition: width 0.5s ease-out;
+  }
+  
+  .milestone
+  {
+    position: absolute;
+    top: -4px;
+    width: 20px;
+    height: 20px;
+    background-color: #bdbdbd;
+    border-radius: 50%;
+    border: 2px solid white;
+    transform: translateX(-50%);
+    z-index: 1;
+  }
+  
+  .milestone.completed
+  {
+    background-color: #4CAF50;
+  }
+  
+  .progress-label
+  {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #555;
+    top: 20px;
+  }
+
+  .level-stats
+  {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 25px;
+  }
+  
+  .points-earned,
+  .level-target
+  {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .stat-value
+  {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+  }
+  
+  .stat-label
+  {
+    font-size: 0.8rem;
+    color: #666;
+  }
+</style>

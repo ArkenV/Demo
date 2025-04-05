@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <polygon points="50,10 61,35 90,35 67,55 75,80 50,65 25,80 33,55 10,35 39,35" fill="#FFC107" stroke="#FF9800" stroke-width="2" />
+  <text x="50" y="55" font-family="Arial" font-size="20" font-weight="bold" text-anchor="middle" fill="#FFFFFF">★</text>
+</svg>

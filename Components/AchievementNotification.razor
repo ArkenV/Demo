@@ -1,0 +1,63 @@
+@inject IJSRuntime JSRuntime
+
+<div class="@CssClass" role="alert" aria-live="polite" tabindex="0" @onclick="@OnDismiss" @onkeypress="@OnKeyPress">
+  <div class="notification-icon">
+    <img src="@Achievement?.IconUrl" alt="" aria-hidden="true" />
+  </div>
+  <div class="notification-content">
+    <div class="notification-title">Achievement Unlocked!</div>
+    <div class="notification-body">
+      <div class="achievement-name">@Achievement?.Title</div>
+      <div class="achievement-description">@Achievement?.Description</div>
+    </div>
+  </div>
+  <button type="button" class="notification-close" aria-label="Dismiss notification" @onclick="OnDismiss">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+
+@code
+{
+  [Parameter] public AchievementModel? Achievement { get; set; }
+  [Parameter] public EventCallback OnDismissed { get; set; }
+  
+  private bool isVisible = false;
+  private string CssClass => $"achievement-notification {(isVisible ? "notification-visible" : "")}";
+  
+  protected override async Task OnInitializedAsync()
+  {
+    await Task.Delay(100);
+    isVisible = true;
+    StateHasChanged();
+    _ = AutoDismissAsync();
+  }
+  
+  private async Task AutoDismissAsync()
+  {
+    await Task.Delay(5000);
+    await DismissAsync();
+  }
+  
+  private async Task DismissAsync()
+  {
+    if (!isVisible) return;
+    
+    isVisible = false;
+    StateHasChanged();
+    
+    await Task.Delay(300);
+    await OnDismissed.InvokeAsync();
+  }
+  private async Task OnDismiss()
+  {
+    await DismissAsync();
+  }
+  
+  private async Task OnKeyPress(KeyboardEventArgs args)
+  {
+    if (args.Key == "Enter" || args.Key == "Escape")
+    {
+      await DismissAsync();
+    }
+  }
+}

@@ -1,0 +1,375 @@
+@page "/dashboard"
+@using Demo.Models
+@using Demo.Services
+@inject IJSRuntime JSRuntime
+@inject IUserStatsService UserStatsService
+@inject IAchievementService AchievementService
+@inject INotificationService NotificationService
+
+<div class="dashboard-container">
+  <div class="dashboard-header" role="region" aria-label="User progress summary">
+    <div class="user-level">
+      <h2>Level @currentLevel <span class="level-title">@levelTitle</span></h2>
+      <div class="level-progress">
+        <MudProgressLinear Value="@levelProgressPercentage" Color="Color.Primary" Class="my-2"
+                           aria-valuemin="0" aria-valuemax="100" aria-valuenow="@levelProgressPercentage"
+                           role="progressbar" aria-label="Progress to next level" />
+        <div class="progress-text">@pointsToNextLevel points to Level @(currentLevel + 1)</div>
+      </div>
+    </div>
+    <div class="user-points">
+      <div class="point-value">@totalPoints</div>
+      <div class="point-label">Total Points</div>
+    </div>
+  </div>
+
+  <MudCard Class="my-4">
+    <MudCardHeader>
+      <MudText Typo="Typo.h5">Today's Progress</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+      <div class="daily-progress">
+        <div class="progress-metric">
+          <div class="metric-value">@todaysClaims</div>
+          <div class="metric-label">Claims Processed</div>
+        </div>
+        <div class="progress-bar">
+          <MudProgressLinear Value="@dailyProgressPercentage" Color="Color.Secondary" Striped="true"
+            aria-valuemin="0" aria-valuemax="100" aria-valuenow="@dailyProgressPercentage"
+            role="progressbar" aria-label="Daily goal progress" />
+          <div class="progress-text">@dailyProgressPercentage% of daily goal</div>
+        </div>
+        <div class="progress-metric">
+          <div class="metric-value">@dailyTarget</div>
+          <div class="metric-label">Daily Target</div>
+        </div>
+      </div>
+      
+      @if (isAboveTarget)
+      {
+        <div class="above-target-message" role="status">
+          <MudIcon Icon="@Icons.Material.Filled.Stars" Color="Color.Warning" />
+          <span>You're @(todaysClaims - dailyTarget) claims above your target!</span>
+        </div>
+      }
+    </MudCardContent>
+  </MudCard>
+
+  <MudCard Class="my-4">
+    <MudCardHeader>
+      <MudText Typo="Typo.h5">Recent Achievements</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+      @if (recentAchievements.Any())
+      {
+        <div class="achievement-list" role="list">
+          @foreach (var achievement in recentAchievements)
+          {
+            <div class="achievement-item" role="listitem">
+              <div class="achievement-icon" aria-hidden="true">
+                <img src="@achievement.IconUrl" alt="" />
+              </div>
+              <div class="achievement-details">
+                <div class="achievement-title">@achievement.Title</div>
+                <div class="achievement-description">@achievement.Description</div>
+                <div class="achievement-earned">Earned @achievement.EarnedDate.ToShortDateString()</div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+      else
+      {
+        <div class="no-achievements" role="status">
+          <p>No recent achievements. Keep up the good work to earn new badges!</p>
+        </div>
+      }
+    </MudCardContent>
+    <MudCardActions>
+      <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/achievements">View All Achievements</MudButton>
+    </MudCardActions>
+  </MudCard>
+  
+  <div class="chart-container">
+    <MudCard Class="my-4">
+      <MudCardHeader>
+        <MudText Typo="Typo.h5">Weekly Performance</MudText>
+      </MudCardHeader>
+      <MudCardContent>
+        <canvas id="weeklyPerformanceChart" style="height: 300px;" aria-label="Chart showing weekly performance"></canvas>
+      </MudCardContent>
+    </MudCard>
+  </div>
+  
+  <MudCard Class="my-4">
+    <MudCardHeader>
+      <MudText Typo="Typo.h5">Next Achievements</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+      <div class="next-achievements" role="list">
+        @foreach (var achievement in nextAchievements)
+        {
+          <div class="next-achievement-item" role="listitem">
+            <div class="achievement-icon locked" aria-hidden="true">
+              <img src="@achievement.IconUrl" alt="" />
+            </div>
+            <div class="achievement-details">
+              <div class="achievement-title">@achievement.Title</div>
+              <div class="achievement-description">@achievement.Description</div>
+              <div class="achievement-progress">
+                <MudProgressLinear Value="@achievement.ProgressPercentage" Color="Color.Dark" Size="Size.Small"
+                                   aria-valuemin="0" aria-valuemax="100" aria-valuenow="@achievement.ProgressPercentage"
+                                   role="progressbar" aria-label="Achievement progress" />
+                <span>@achievement.ProgressText</span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </MudCardContent>
+  </MudCard>
+</div>
+
+@code
+{
+  private string levelTitle = "Resolution Ranger";
+  private int currentLevel = 8;
+  private int levelProgressPercentage = 65;
+  private int pointsToNextLevel = 350;
+  private int totalPoints = 2650;
+
+  private int todaysClaims = 32;
+  private int dailyTarget = 30;
+  private int dailyProgressPercentage => Math.Min((int)(todaysClaims * 100.0 / dailyTarget), 100);
+  private bool isAboveTarget => todaysClaims > dailyTarget;
+
+  private List<AchievementModel> recentAchievements = new List<AchievementModel>();
+  private List<AchievementModel> nextAchievements = new List<AchievementModel>();
+
+  protected override async Task OnInitializedAsync()
+  {
+    var userStats = await UserStatsService.GetUserStatsAsync();
+    currentLevel = userStats.CurrentLevel;
+    levelTitle = userStats.LevelTitle!;
+    levelProgressPercentage = userStats.LevelProgressPercentage;
+    pointsToNextLevel = userStats.PointsToNextLevel;
+    totalPoints = userStats.TotalPoints;
+    todaysClaims = userStats.TodaysClaims;
+    dailyTarget = userStats.DailyTarget;
+
+    recentAchievements = await UserStatsService.GetRecentAchievementsAsync();
+    nextAchievements = await UserStatsService.GetNextAchievementsAsync();
+
+    await CheckForNewAchievements();
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      await RenderCharts();
+    }
+  }
+
+  private async Task LoadUserData()
+  {
+    recentAchievements = new List<AchievementModel>
+    {
+      new AchievementModel
+      {
+        Title = "Quick Closer",
+        Description = "Maintained an average case time under 5 minutes for one week",
+        IconUrl = "/images/badges/quick-closer.svg",
+        EarnedDate = DateTime.Now.AddDays(-2)
+      },
+      new AchievementModel
+      {
+        Title = "Resolution Rock Star",
+        Description = "Top 10% performer in case closures this month",
+        IconUrl = "/images/badges/rockstar.svg",
+        EarnedDate = DateTime.Now.AddDays(-5)
+      }
+    };
+
+    nextAchievements = new List<AchievementModel>
+    {
+      new AchievementModel
+      {
+        Title = "Zero Backlog",
+        Description = "Clear your pending queue for 5 consecutive days",
+        IconUrl = "/images/badges/zero-backlog.svg",
+        ProgressPercentage = 60,
+        ProgressText = "3/5 days completed"
+      },
+      new AchievementModel
+      {
+        Title = "Quality Guru",
+        Description = "Maintain 95% quality score for 30 days",
+        IconUrl = "/images/badges/quality-guru.svg",
+        ProgressPercentage = 80,
+        ProgressText = "24/30 days completed"
+      }
+    };
+  }
+
+  private async Task CheckForNewAchievements()
+  {
+    await Task.Delay(3000);
+
+    await NotificationService.ShowAchievementNotification(new AchievementModel
+    {
+      Title = "Streak Saver",
+      Description = "Logged in for 10 consecutive business days",
+      IconUrl = "/images/badges/streak-saver.svg"
+    });
+  }
+
+  private async Task RenderCharts()
+  {
+    var labels = new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+    var userPerformance = new[] { 25, 32, 28, 35, 31, 22, 30 };
+    var teamAverage = new[] { 22, 24, 25, 26, 23, 18, 20 };
+
+    await JSRuntime.InvokeVoidAsync("renderPerformanceChart",
+    "weeklyPerformanceChart",
+    labels,
+    userPerformance,
+    teamAverage);
+  }
+}
+
+<style>
+  .dashboard-container
+  {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  .dashboard-header
+  {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .user-level
+  {
+    flex: 1;
+  }
+
+  .level-title
+  {
+    font-size: 0.8em;
+    color: #666;
+    margin-left: 10px;
+  }
+
+  .user-points
+  {
+    text-align: center;
+    background-color: #1976D2;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 10px;
+  }
+
+  .point-value
+  {
+    font-size: 2rem;
+    font-weight: bold;
+  }
+
+  .daily-progress
+  {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .progress-bar
+  {
+    flex: 1;
+    margin: 0 20px;
+  }
+
+  .above-target-message
+  {
+    display: flex;
+    align-items: center;
+    background-color: #FFF8E1;
+    padding: 10px;
+    border-radius: 5px;
+    color: #F57F17;
+  }
+
+  .achievement-list,
+  .next-achievements
+  {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .achievement-item,
+  .next-achievement-item
+  {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #F5F5F5;
+  }
+
+  .achievement-icon
+  {
+    width: 60px;
+    height: 60px;
+    margin-right: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .achievement-icon img
+  {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .achievement-icon.locked
+  {
+    opacity: 0.5;
+    filter: grayscale(100%);
+  }
+
+  .achievement-details
+  {
+    flex: 1;
+  }
+
+  .achievement-title
+  {
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  .achievement-earned
+  {
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 5px;
+  }
+
+  .achievement-progress
+  {
+    margin-top: 8px;
+  }
+
+  .chart-container
+  {
+    height: 350px;
+  }
+</style>
